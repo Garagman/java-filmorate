@@ -1,8 +1,9 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.List;
@@ -10,10 +11,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class UserService {
 
     private final UserStorage userStorage;
+
+    public UserService() {
+        this.userStorage = new InMemoryUserStorage();
+    }
+
+    public UserService(UserStorage userStorage) {
+        this.userStorage = userStorage;
+    }
 
     public User createUser(User user) {
         return userStorage.create(user);
@@ -32,6 +40,10 @@ public class UserService {
     }
 
     public void addFriend(Integer id, Integer friendId) {
+        if (id.equals(friendId)) {
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
+        }
+
         User user = getById(id);
         User friend = getById(friendId);
 

@@ -26,6 +26,7 @@ public class InMemoryUserStorage implements UserStorage {
                     String.format("Пользователь с id=%s не найден", user.getId())
             );
         }
+
         users.put(user.getId(), user);
         return user;
     }
@@ -33,9 +34,13 @@ public class InMemoryUserStorage implements UserStorage {
     @Override
     public User getById(Integer id) {
         User user = users.get(id);
+
         if (user == null) {
-            throw new NotFoundException(String.format("Пользователь с id=%d не найден", id));
+            throw new NotFoundException(
+                    String.format("Пользователь с id=%d не найден", id)
+            );
         }
+
         return user;
     }
 

@@ -1,78 +1,50 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
+import java.util.stream.Collectors;
 
-@Slf4j
 @Service
+@RequiredArgsConstructor
 public class FilmService {
-    private static final LocalDate FIRST_FILM_DATE = LocalDate.of(1895, 12, 28);
 
-    private final Map<Integer, Film> films = new HashMap<>();
-    private int nextId = 1;
+    private final FilmStorage filmStorage;
 
     public Film createFilm(Film film) {
-        validate(film);
-        film.setId(nextId++);
-        films.put(film.getId(), film);
-        log.info("Создан фильм: {}", film);
-        return film;
+        return filmStorage.create(film);
     }
 
     public Film updateFilm(Film film) {
-        validate(film);
-
-        if (film.getId() == null || !films.containsKey(film.getId())) {
-            log.warn("Фильм с id={} не найден", film.getId());
-            throw new NotFoundException(
-                    String.format("Фильм с id=%d не найден", film.getId())
-            );
-        }
-
-        films.put(film.getId(), film);
-        log.info("Обновлён фильм: {}", film);
-        return film;
+        return filmStorage.update(film);
     }
 
     public List<Film> getAllFilms() {
-        return new ArrayList<>(films.values());
+        return filmStorage.getAll();
     }
 
-    private void validate(Film film) {
-        if (film == null) {
-            log.warn("Передан пустой объект фильма");
-            throw new ValidationException("Фильм не может быть пустым");
-        }
+    public Film getById(Integer id) {
+        return filmStorage.getById(id);
+    }
 
-        if (film.getName() == null || film.getName().isBlank()) {
-            log.warn("Пустое название фильма");
-            throw new ValidationException("Название фильма не может быть пустым");
-        }
+    public void addLike(Integer filmId, Integer userId) {
+        Film film = getById(filmId);
+        film.getLikes().add(userId);
+    }
 
-        if (film.getDescription() != null && film.getDescription().length() > 200) {
-            log.warn("Слишком длинное описание фильма: {} символов", film.getDescription().length());
-            throw new ValidationException("Описание фильма не может быть длиннее 200 символов");
-        }
+    public void removeLike(Integer filmId, Integer userId) {
+        Film film = getById(filmId);
+        film.getLikes().remove(userId);
+    }
 
-        if (film.getReleaseDate() != null && film.getReleaseDate().isBefore(FIRST_FILM_DATE)) {
-            log.warn("Некорректная дата релиза: {}", film.getReleaseDate());
-            throw new ValidationException(
-                    String.format("Дата релиза не может быть раньше %s", FIRST_FILM_DATE)
-            );
-        }
-
-        if (film.getDuration() == null || film.getDuration() <= 0) {
-            log.warn("Некорректная продолжительность фильма: {}", film.getDuration());
-            throw new ValidationException("Продолжительность фильма должна быть положительным числом");
-        }
+    public List<Film> getPopular(int count) {
+        return filmStorage.getAll().stream()
+                .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
+                .limit(count)
+                .collect(Collectors.toList());
     }
 }

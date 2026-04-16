@@ -6,6 +6,7 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,10 +25,12 @@ public class UserService {
     }
 
     public User createUser(User user) {
+        validate(user);
         return userStorage.create(user);
     }
 
     public User updateUser(User user) {
+        validate(user);
         return userStorage.update(user);
     }
 
@@ -39,9 +42,32 @@ public class UserService {
         return userStorage.getById(id);
     }
 
+    private void validate(User user) {
+        if (user.getEmail() == null || !user.getEmail().contains("@")) {
+            throw new ValidationException("Некорректный email");
+        }
+
+        if (user.getLogin() == null || user.getLogin().isBlank()) {
+            throw new ValidationException("Логин не может быть пустым");
+        }
+
+        if (user.getLogin().contains(" ")) {
+            throw new ValidationException("Логин не должен содержать пробелы");
+        }
+
+        if (user.getBirthday() != null && user.getBirthday().isAfter(LocalDate.now())) {
+            throw new ValidationException("Дата рождения не может быть в будущем");
+        }
+
+        // 🔥 ВАЖНО для теста
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
+    }
+
     public void addFriend(Integer id, Integer friendId) {
         if (id.equals(friendId)) {
-            throw new ValidationException("Нельзя добавить самого себя в друзья");
+            throw new ValidationException("Нельзя добавить самого себя");
         }
 
         User user = getById(id);
@@ -60,18 +86,14 @@ public class UserService {
     }
 
     public List<User> getFriends(Integer id) {
-        User user = getById(id);
-        return user.getFriends().stream()
+        return getById(id).getFriends().stream()
                 .map(userStorage::getById)
                 .collect(Collectors.toList());
     }
 
     public List<User> getCommonFriends(Integer id, Integer otherId) {
-        User user = getById(id);
-        User otherUser = getById(otherId);
-
-        Set<Integer> friends = user.getFriends();
-        Set<Integer> otherFriends = otherUser.getFriends();
+        Set<Integer> friends = getById(id).getFriends();
+        Set<Integer> otherFriends = getById(otherId).getFriends();
 
         return friends.stream()
                 .filter(otherFriends::contains)

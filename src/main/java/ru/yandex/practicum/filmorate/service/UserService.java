@@ -3,7 +3,6 @@ package ru.yandex.practicum.filmorate.service;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
@@ -15,10 +14,6 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserStorage userStorage;
-
-    public UserService() {
-        this.userStorage = new InMemoryUserStorage();
-    }
 
     public UserService(UserStorage userStorage) {
         this.userStorage = userStorage;
@@ -59,7 +54,6 @@ public class UserService {
             throw new ValidationException("Дата рождения не может быть в будущем");
         }
 
-        // 🔥 ВАЖНО для теста
         if (user.getName() == null || user.getName().isBlank()) {
             user.setName(user.getLogin());
         }

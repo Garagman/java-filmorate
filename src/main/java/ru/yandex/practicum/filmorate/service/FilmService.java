@@ -4,8 +4,6 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.film.InMemoryFilmStorage;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
@@ -18,13 +16,6 @@ public class FilmService {
     private final FilmStorage filmStorage;
     private final UserStorage userStorage;
 
-    // для тестов
-    public FilmService() {
-        this.filmStorage = new InMemoryFilmStorage();
-        this.userStorage = new InMemoryUserStorage();
-    }
-
-    // для Spring
     public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
@@ -51,14 +42,12 @@ public class FilmService {
     public void addLike(Integer filmId, Integer userId) {
         Film film = filmStorage.getById(filmId);
         userStorage.getById(userId);
-
         film.getLikes().add(userId);
     }
 
     public void removeLike(Integer filmId, Integer userId) {
         Film film = filmStorage.getById(filmId);
         userStorage.getById(userId);
-
         film.getLikes().remove(userId);
     }
 
@@ -70,7 +59,6 @@ public class FilmService {
     }
 
     private void validate(Film film) {
-
         if (film.getName() == null || film.getName().isBlank()) {
             throw new ValidationException("Название фильма не может быть пустым");
         }

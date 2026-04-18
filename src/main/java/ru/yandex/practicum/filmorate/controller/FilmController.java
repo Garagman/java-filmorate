@@ -12,6 +12,9 @@ import java.util.List;
 @RequestMapping("/films")
 @RequiredArgsConstructor
 public class FilmController {
+
+    private static final String LIKE_PATH = "/{id}/like/{userId}";
+
     private final FilmService filmService;
 
     @PostMapping
@@ -35,13 +38,13 @@ public class FilmController {
         return filmService.getById(id);
     }
 
-    @PutMapping("/{id}/like/{userId}")
+    @PutMapping(LIKE_PATH)
     public void addLike(@PathVariable Integer id,
                         @PathVariable Integer userId) {
         filmService.addLike(id, userId);
     }
 
-    @DeleteMapping("/{id}/like/{userId}")
+    @DeleteMapping(LIKE_PATH)
     public void removeLike(@PathVariable Integer id,
                            @PathVariable Integer userId) {
         filmService.removeLike(id, userId);

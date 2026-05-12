@@ -13,6 +13,8 @@ import ru.yandex.practicum.filmorate.model.Mpa;
 import ru.yandex.practicum.filmorate.storage.mapper.FilmMapper;
 import ru.yandex.practicum.filmorate.storage.mapper.GenreMapper;
 import ru.yandex.practicum.filmorate.storage.mapper.MpaMapper;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 
 import java.sql.PreparedStatement;
 import java.util.*;
@@ -163,9 +165,11 @@ public class FilmDbStorage implements FilmStorage {
         }
 
         List<Genre> genres = jdbcTemplate.query(SQL_FIND_GENRES_BY_FILM_ID, genreMapper, film.getId());
-        film.setGenres(new HashSet<>(genres));
+        // Сортируем жанры по id для стабильного порядка в ответах
+        genres.sort(Comparator.comparing(Genre::getId));
+        film.setGenres(new LinkedHashSet<>(genres));
 
-        Set<Integer> genreIds = new HashSet<>();
+        Set<Integer> genreIds = new LinkedHashSet<>();
         for (Genre g : genres) {
             genreIds.add(g.getId());
         }

@@ -107,45 +107,60 @@ public class UserDbStorage implements UserStorage {
         getById(userId);
         getById(friendId);
 
+        String sql = "SELECT status FROM friendships "
+                + "WHERE user_id = ? AND friend_id = ?";
         String currentStatus = jdbcTemplate.query(
-                "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
-                rs -> rs.next() ? rs.getString("status") : null, userId, friendId);
+                sql,
+                rs -> rs.next() ? rs.getString("status") : null,
+                userId, friendId);
 
+        String reverseSql = "SELECT status FROM friendships "
+                + "WHERE user_id = ? AND friend_id = ?";
         String reverseStatus = jdbcTemplate.query(
-                "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
-                rs -> rs.next() ? rs.getString("status") : null, friendId, userId);
+                reverseSql,
+                rs -> rs.next() ? rs.getString("status") : null,
+                friendId, userId);
 
-        if ("CONFIRMED".equals(currentStatus)) {
-            return;
-        }
+        if (currentStatus == null) {
+            if ("UNCONFIRMED".equals(reverseStatus)) {
+                // Встречная заявка → подтверждаем взаимно
+                String updateSql = "UPDATE friendships SET status = 'CONFIRMED' "
+                        + "WHERE user_id = ? AND friend_id = ?";
+                jdbcTemplate.update(updateSql, friendId, userId);
 
-        if ("UNCONFIRMED".equals(reverseStatus)) {
-            jdbcTemplate.update(
-                    "UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?",
-                    friendId, userId);
-            jdbcTemplate.update(
-                    "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
-                    userId, friendId);
-        } else if (currentStatus == null) {
-            jdbcTemplate.update(
-                    "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
-                    userId, friendId);
+                String insertSql = "INSERT INTO friendships "
+                        + "(user_id, friend_id, status) "
+                        + "VALUES (?, ?, 'CONFIRMED')";
+                jdbcTemplate.update(insertSql, userId, friendId);
+            } else {
+                // Новая заявка → ставим UNCONFIRMED
+                String insertSql = "INSERT INTO friendships "
+                        + "(user_id, friend_id, status) "
+                        + "VALUES (?, ?, 'UNCONFIRMED')";
+                jdbcTemplate.update(insertSql, userId, friendId);
+            }
         }
     }
+
 
     @Override
     public void removeFriend(Integer userId, Integer friendId) {
         getById(userId);
         getById(friendId);
-        jdbcTemplate.update(
-                "DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
-                userId, friendId, friendId, userId);
+
+        // Удаляем обе записи: и от userId к friendId, и наоборот
+        String deleteSql = "DELETE FROM friendships "
+                + "WHERE (user_id = ? AND friend_id = ?) "
+                + "OR (user_id = ? AND friend_id = ?)";
+        jdbcTemplate.update(deleteSql, userId, friendId, friendId, userId);
     }
 
     @Override
     public List<User> getFriends(Integer userId) {
         getById(userId);
-        return jdbcTemplate.query(SQL_FIND_FRIENDS, userMapper, userId);
+        return jdbcTemplate.query(
+                "SELECT u.* FROM users u JOIN friendships f ON u.id = f.friend_id WHERE f.user_id = ?",
+                userMapper, userId);
     }
 
     @Override

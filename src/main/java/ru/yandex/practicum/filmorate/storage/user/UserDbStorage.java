@@ -103,30 +103,31 @@ public class UserDbStorage implements UserStorage {
         if (userId.equals(friendId)) {
             throw new ValidationException("Нельзя добавить самого себя");
         }
+
         getById(userId);
         getById(friendId);
 
         String currentStatus = jdbcTemplate.query(
                 "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
                 rs -> rs.next() ? rs.getString("status") : null, userId, friendId);
+
         String reverseStatus = jdbcTemplate.query(
                 "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
                 rs -> rs.next() ? rs.getString("status") : null, friendId, userId);
 
         if ("CONFIRMED".equals(currentStatus)) {
-            return; // Уже друзья
+            return;
         }
 
         if ("UNCONFIRMED".equals(reverseStatus)) {
-            // Встречная заявка → подтверждаем взаимно
             jdbcTemplate.update(
                     "UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?",
                     friendId, userId);
             jdbcTemplate.update(
                     "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
                     userId, friendId);
-        } else if (currentStatus == null) {
-            // Новая односторонняя заявка
+        }
+        else if (currentStatus == null) {
             jdbcTemplate.update(
                     "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
                     userId, friendId);
@@ -135,10 +136,8 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public void removeFriend(Integer userId, Integer friendId) {
-        // Проверяем существование
         getById(userId);
         getById(friendId);
-        // Одностороннее удаление + чистка обратной связи
         jdbcTemplate.update(
                 "DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
                 userId, friendId, friendId, userId);
@@ -146,14 +145,12 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public List<User> getFriends(Integer userId) {
-        // Проверяем существование пользователя
         getById(userId);
         return jdbcTemplate.query(SQL_FIND_FRIENDS, userMapper, userId);
     }
 
     @Override
     public List<User> getCommonFriends(Integer userId, Integer otherId) {
-        // Проверяем существование обоих пользователей
         getById(userId);
         getById(otherId);
         return jdbcTemplate.query(SQL_FIND_COMMON_FRIENDS, userMapper, userId, otherId, userId, otherId);

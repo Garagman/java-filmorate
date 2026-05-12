@@ -153,7 +153,6 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private Film enrichFilm(Film film) {
-        // Загружаем MPA
         if (film.getMpaId() != null) {
             List<Mpa> mpaList = jdbcTemplate.query(SQL_FIND_MPA_BY_ID, mpaMapper, film.getMpaId());
             if (!mpaList.isEmpty()) {

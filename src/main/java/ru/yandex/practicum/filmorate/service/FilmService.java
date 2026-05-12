@@ -1,5 +1,7 @@
 package ru.yandex.practicum.filmorate.service;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
@@ -7,19 +9,19 @@ import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class FilmService {
 
+    // @Qualifier нужен, чтобы Spring точно знал, какой бин инжектить,
+    // когда в контексте есть и InMemory, и DB реализации
+    @Qualifier("filmDbStorage")
     private final FilmStorage filmStorage;
-    private final UserStorage userStorage;
 
-    public FilmService(FilmStorage filmStorage, UserStorage userStorage) {
-        this.filmStorage = filmStorage;
-        this.userStorage = userStorage;
-    }
+    @Qualifier("userDbStorage")
+    private final UserStorage userStorage;
 
     public Film createFilm(Film film) {
         validate(film);
@@ -40,22 +42,23 @@ public class FilmService {
     }
 
     public void addLike(Integer filmId, Integer userId) {
-        Film film = filmStorage.getById(filmId);
-        userStorage.getById(userId);
-        film.getLikes().add(userId);
+        // Проверяем существование сущностей перед записью лайка
+        filmStorage.getById(filmId); // бросит NotFoundException, если фильм не найден
+        userStorage.getById(userId); // бросит NotFoundException, если пользователь не найден
+        filmStorage.addLike(filmId, userId);
     }
 
     public void removeLike(Integer filmId, Integer userId) {
-        Film film = filmStorage.getById(filmId);
+        filmStorage.getById(filmId);
         userStorage.getById(userId);
-        film.getLikes().remove(userId);
+        filmStorage.removeLike(filmId, userId);
     }
 
     public List<Film> getPopular(int count) {
-        return filmStorage.getAll().stream()
-                .sorted(Comparator.comparingInt((Film f) -> f.getLikes().size()).reversed())
-                .limit(count)
-                .toList();
+        if (count <= 0) {
+            return List.of();
+        }
+        return filmStorage.getPopular(count);
     }
 
     private void validate(Film film) {
@@ -69,11 +72,11 @@ public class FilmService {
 
         if (film.getReleaseDate() != null &&
                 film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
-            throw new ValidationException("Некорректная дата релиза");
+            throw new ValidationException("Дата релиза не может быть раньше 28 декабря 1895 года");
         }
 
         if (film.getDuration() == null || film.getDuration() <= 0) {
-            throw new ValidationException("Длительность должна быть положительной");
+            throw new ValidationException("Длительность фильма должна быть положительной");
         }
     }
 }

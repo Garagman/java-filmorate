@@ -126,8 +126,7 @@ public class UserDbStorage implements UserStorage {
             jdbcTemplate.update(
                     "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
                     userId, friendId);
-        }
-        else if (currentStatus == null) {
+        } else if (currentStatus == null) {
             jdbcTemplate.update(
                     "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
                     userId, friendId);

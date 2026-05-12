@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
@@ -36,7 +37,7 @@ class FilmServiceTest {
             return getAll().stream()
                     .filter(m -> m.getId().equals(id))
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException("MPA not found"));
+                    .orElseThrow(() -> new NotFoundException("MPA not found"));
         }
 
         private Mpa createMpa(Integer id, String name) {
@@ -59,7 +60,7 @@ class FilmServiceTest {
             return getAll().stream()
                     .filter(g -> g.getId().equals(id))
                     .findFirst()
-                    .orElseThrow(() -> new RuntimeException("Genre not found"));
+                    .orElseThrow(() -> new NotFoundException("Genre not found"));
         }
 
         private Genre createGenre(Integer id, String name) {

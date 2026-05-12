@@ -41,15 +41,15 @@ public class UserDbStorage implements UserStorage {
     private static final String SQL_FIND_FRIENDS =
             "SELECT u.* FROM users u " +
                     "JOIN friendships f ON u.id = f.friend_id " +
-                    "WHERE f.user_id = ? AND f.status = 'CONFIRMED'";
+                    "WHERE f.user_id = ?";
 
     private static final String SQL_FIND_COMMON_FRIENDS =
             "SELECT u.* FROM users u " +
                     "WHERE u.id IN (" +
-                    "    SELECT friend_id FROM friendships WHERE user_id = ? AND status = 'CONFIRMED'" +
+                    "    SELECT friend_id FROM friendships WHERE user_id = ?" +
                     ") " +
                     "AND u.id IN (" +
-                    "    SELECT friend_id FROM friendships WHERE user_id = ? AND status = 'CONFIRMED'" +
+                    "    SELECT friend_id FROM friendships WHERE user_id = ?" +
                     ") " +
                     "AND u.id != ? AND u.id != ?";
 
@@ -107,30 +107,12 @@ public class UserDbStorage implements UserStorage {
         getById(userId);
         getById(friendId);
 
-        String currentStatus = jdbcTemplate.query(
-                "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
-                rs -> rs.next() ? rs.getString("status") : null, userId, friendId);
-
-        String reverseStatus = jdbcTemplate.query(
-                "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
-                rs -> rs.next() ? rs.getString("status") : null, friendId, userId);
-
-        if ("CONFIRMED".equals(currentStatus)) {
-            return;
-        }
-
-        if ("UNCONFIRMED".equals(reverseStatus)) {
-            jdbcTemplate.update(
-                    "UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?",
-                    friendId, userId);
-            jdbcTemplate.update(
-                    "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
-                    userId, friendId);
-        } else if (currentStatus == null) {
-            jdbcTemplate.update(
-                    "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
-                    userId, friendId);
-        }
+        jdbcTemplate.update(
+                "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
+                userId, friendId);
+        jdbcTemplate.update(
+                "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
+                friendId, userId);
     }
 
     @Override

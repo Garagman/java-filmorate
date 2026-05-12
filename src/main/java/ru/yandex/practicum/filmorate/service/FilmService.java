@@ -5,13 +5,16 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
+import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class FilmService {
@@ -34,11 +37,13 @@ public class FilmService {
     }
 
     public Film createFilm(Film film) {
+        syncFilmFields(film);
         validate(film);
         return filmStorage.create(film);
     }
 
     public Film updateFilm(Film film) {
+        syncFilmFields(film);
         validate(film);
         return filmStorage.update(film);
     }
@@ -68,6 +73,21 @@ public class FilmService {
             return List.of();
         }
         return filmStorage.getPopular(count);
+    }
+
+    private void syncFilmFields(Film film) {
+        if (film.getMpa() != null && film.getMpa().getId() != null) {
+            film.setMpaId(film.getMpa().getId());
+        }
+        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
+            Set<Integer> ids = new HashSet<>();
+            for (Genre g : film.getGenres()) {
+                if (g.getId() != null) {
+                    ids.add(g.getId());
+                }
+            }
+            film.setGenreIds(ids);
+        }
     }
 
     private void validate(Film film) {

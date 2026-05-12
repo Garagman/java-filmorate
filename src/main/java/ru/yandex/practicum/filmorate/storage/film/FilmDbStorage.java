@@ -156,7 +156,9 @@ public class FilmDbStorage implements FilmStorage {
         if (film.getMpaId() != null) {
             List<Mpa> mpaList = jdbcTemplate.query(SQL_FIND_MPA_BY_ID, mpaMapper, film.getMpaId());
             if (!mpaList.isEmpty()) {
-                film.setMpa(mpaList.get(0));
+                Mpa mpa = mpaList.get(0);
+                film.setMpa(mpa);
+                film.setMpaId(mpa.getId());
             }
         }
 

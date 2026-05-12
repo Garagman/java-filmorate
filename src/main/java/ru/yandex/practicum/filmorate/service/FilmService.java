@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
+import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
+import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
@@ -15,13 +17,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class FilmService {
 
-    // @Qualifier нужен, чтобы Spring точно знал, какой бин инжектить,
-    // когда в контексте есть и InMemory, и DB реализации
     @Qualifier("filmDbStorage")
     private final FilmStorage filmStorage;
 
     @Qualifier("userDbStorage")
     private final UserStorage userStorage;
+
+    private final MpaStorage mpaStorage;
+    private final GenreStorage genreStorage;
 
     public Film createFilm(Film film) {
         validate(film);
@@ -42,9 +45,8 @@ public class FilmService {
     }
 
     public void addLike(Integer filmId, Integer userId) {
-        // Проверяем существование сущностей перед записью лайка
-        filmStorage.getById(filmId); // бросит NotFoundException, если фильм не найден
-        userStorage.getById(userId); // бросит NotFoundException, если пользователь не найден
+        filmStorage.getById(filmId);
+        userStorage.getById(userId);
         filmStorage.addLike(filmId, userId);
     }
 
@@ -77,6 +79,24 @@ public class FilmService {
 
         if (film.getDuration() == null || film.getDuration() <= 0) {
             throw new ValidationException("Длительность фильма должна быть положительной");
+        }
+
+        if (film.getMpaId() != null) {
+            try {
+                mpaStorage.getById(film.getMpaId());
+            } catch (RuntimeException e) {
+                throw new ValidationException("Рейтинг с id=" + film.getMpaId() + " не найден");
+            }
+        }
+
+        if (film.getGenreIds() != null) {
+            for (Integer genreId : film.getGenreIds()) {
+                try {
+                    genreStorage.getById(genreId);
+                } catch (RuntimeException e) {
+                    throw new ValidationException("Жанр с id=" + genreId + " не найден");
+                }
+            }
         }
     }
 }

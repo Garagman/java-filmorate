@@ -13,7 +13,10 @@ import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.mapper.UserMapper;
 
 import java.sql.PreparedStatement;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 @Repository
 @Component("userDbStorage")
@@ -23,20 +26,32 @@ public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbcTemplate;
     private final UserMapper userMapper;
 
-    private static final String SQL_INSERT = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
-    private static final String SQL_UPDATE = "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? WHERE id = ?";
-    private static final String SQL_FIND_BY_ID = "SELECT * FROM users WHERE id = ?";
-    private static final String SQL_FIND_ALL = "SELECT * FROM users";
+    private static final String SQL_INSERT =
+            "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
+
+    private static final String SQL_UPDATE =
+            "UPDATE users SET email = ?, login = ?, name = ?, birthday = ? WHERE id = ?";
+
+    private static final String SQL_FIND_BY_ID =
+            "SELECT * FROM users WHERE id = ?";
+
+    private static final String SQL_FIND_ALL =
+            "SELECT * FROM users";
+
     private static final String SQL_FIND_FRIENDS =
             "SELECT u.* FROM users u " +
                     "JOIN friendships f ON u.id = f.friend_id " +
                     "WHERE f.user_id = ? AND f.status = 'CONFIRMED'";
+
     private static final String SQL_FIND_COMMON_FRIENDS =
             "SELECT u.* FROM users u " +
-                    "JOIN friendships f1 ON u.id = f1.friend_id " +
-                    "JOIN friendships f2 ON u.id = f2.friend_id " +
-                    "WHERE f1.user_id = ? AND f2.user_id = ? " +
-                    "AND f1.status = 'CONFIRMED' AND f2.status = 'CONFIRMED'";
+                    "WHERE u.id IN (" +
+                    "    SELECT friend_id FROM friendships WHERE user_id = ? AND status = 'CONFIRMED'" +
+                    ") " +
+                    "AND u.id IN (" +
+                    "    SELECT friend_id FROM friendships WHERE user_id = ? AND status = 'CONFIRMED'" +
+                    ") " +
+                    "AND u.id != ? AND u.id != ?";
 
     @Override
     public User create(User user) {
@@ -57,14 +72,18 @@ public class UserDbStorage implements UserStorage {
     public User update(User user) {
         int rows = jdbcTemplate.update(SQL_UPDATE,
                 user.getEmail(), user.getLogin(), user.getName(), user.getBirthday(), user.getId());
-        if (rows == 0) throw new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
+        if (rows == 0) {
+            throw new NotFoundException("Пользователь с id=" + user.getId() + " не найден");
+        }
         return user;
     }
 
     @Override
     public User getById(Integer id) {
         List<User> users = jdbcTemplate.query(SQL_FIND_BY_ID, userMapper, id);
-        if (users.isEmpty()) throw new NotFoundException("Пользователь с id=" + id + " не найден");
+        if (users.isEmpty()) {
+            throw new NotFoundException("Пользователь с id=" + id + " не найден");
+        }
         User user = users.get(0);
         user.setFriends(loadFriendships(user.getId()));
         return user;
@@ -73,13 +92,19 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getAll() {
         List<User> users = jdbcTemplate.query(SQL_FIND_ALL, userMapper);
-        for (User user : users) user.setFriends(loadFriendships(user.getId()));
+        for (User user : users) {
+            user.setFriends(loadFriendships(user.getId()));
+        }
         return users;
     }
 
     @Override
     public void addFriend(Integer userId, Integer friendId) {
-        if (userId.equals(friendId)) throw new ValidationException("Нельзя добавить самого себя");
+        if (userId.equals(friendId)) {
+            throw new ValidationException("Нельзя добавить самого себя");
+        }
+        getById(userId);
+        getById(friendId);
 
         String currentStatus = jdbcTemplate.query(
                 "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
@@ -88,34 +113,50 @@ public class UserDbStorage implements UserStorage {
                 "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?",
                 rs -> rs.next() ? rs.getString("status") : null, friendId, userId);
 
-        if ("CONFIRMED".equals(currentStatus)) return; // Уже друзья
+        if ("CONFIRMED".equals(currentStatus)) {
+            return; // Уже друзья
+        }
 
         if ("UNCONFIRMED".equals(reverseStatus)) {
             // Встречная заявка → подтверждаем взаимно
-            jdbcTemplate.update("UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?", friendId, userId);
-            jdbcTemplate.update("MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')", userId, friendId);
+            jdbcTemplate.update(
+                    "UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?",
+                    friendId, userId);
+            jdbcTemplate.update(
+                    "MERGE INTO friendships (user_id, friend_id, status) KEY (user_id, friend_id) VALUES (?, ?, 'CONFIRMED')",
+                    userId, friendId);
         } else if (currentStatus == null) {
             // Новая односторонняя заявка
-            jdbcTemplate.update("INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')", userId, friendId);
+            jdbcTemplate.update(
+                    "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
+                    userId, friendId);
         }
     }
 
     @Override
     public void removeFriend(Integer userId, Integer friendId) {
-        // Одностороннее удаление: убираем только связь со стороны инициатора
-        jdbcTemplate.update("DELETE FROM friendships WHERE user_id = ? AND friend_id = ?", userId, friendId);
-        // Для чистоты БД удаляем и обратную связь, если она была
-        jdbcTemplate.update("DELETE FROM friendships WHERE user_id = ? AND friend_id = ?", friendId, userId);
+        // Проверяем существование
+        getById(userId);
+        getById(friendId);
+        // Одностороннее удаление + чистка обратной связи
+        jdbcTemplate.update(
+                "DELETE FROM friendships WHERE (user_id = ? AND friend_id = ?) OR (user_id = ? AND friend_id = ?)",
+                userId, friendId, friendId, userId);
     }
 
     @Override
     public List<User> getFriends(Integer userId) {
+        // Проверяем существование пользователя
+        getById(userId);
         return jdbcTemplate.query(SQL_FIND_FRIENDS, userMapper, userId);
     }
 
     @Override
     public List<User> getCommonFriends(Integer userId, Integer otherId) {
-        return jdbcTemplate.query(SQL_FIND_COMMON_FRIENDS, userMapper, userId, otherId);
+        // Проверяем существование обоих пользователей
+        getById(userId);
+        getById(otherId);
+        return jdbcTemplate.query(SQL_FIND_COMMON_FRIENDS, userMapper, userId, otherId, userId, otherId);
     }
 
     private Map<Integer, FriendshipStatus> loadFriendships(Integer userId) {

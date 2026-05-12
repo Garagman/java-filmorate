@@ -92,12 +92,8 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public Film update(Film film) {
         int rows = jdbcTemplate.update(SQL_UPDATE,
-                film.getName(),
-                film.getDescription(),
-                film.getReleaseDate(),
-                film.getDuration(),
-                film.getMpaId(),
-                film.getId());
+                film.getName(), film.getDescription(), film.getReleaseDate(),
+                film.getDuration(), film.getMpaId(), film.getId());
 
         if (rows == 0) {
             throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
@@ -131,6 +127,7 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
+    @Override
     public List<Film> getPopular(int count) {
         List<Film> films = jdbcTemplate.query(SQL_FIND_POPULAR, filmMapper, count);
         for (Film film : films) {
@@ -139,10 +136,12 @@ public class FilmDbStorage implements FilmStorage {
         return films;
     }
 
+    @Override
     public void addLike(Integer filmId, Integer userId) {
         jdbcTemplate.update(SQL_ADD_LIKE, filmId, userId);
     }
 
+    @Override
     public void removeLike(Integer filmId, Integer userId) {
         jdbcTemplate.update(SQL_REMOVE_LIKE, filmId, userId);
     }
@@ -164,6 +163,7 @@ public class FilmDbStorage implements FilmStorage {
 
         List<Genre> genres = jdbcTemplate.query(SQL_FIND_GENRES_BY_FILM_ID, genreMapper, film.getId());
         film.setGenres(new HashSet<>(genres));
+
         Set<Integer> genreIds = new HashSet<>();
         for (Genre g : genres) {
             genreIds.add(g.getId());

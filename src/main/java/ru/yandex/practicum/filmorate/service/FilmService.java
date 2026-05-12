@@ -1,6 +1,5 @@
 package ru.yandex.practicum.filmorate.service;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
@@ -14,17 +13,25 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class FilmService {
 
-    @Qualifier("filmDbStorage")
     private final FilmStorage filmStorage;
-
-    @Qualifier("userDbStorage")
     private final UserStorage userStorage;
-
     private final MpaStorage mpaStorage;
     private final GenreStorage genreStorage;
+
+    // Ручной конструктор — Lombok @RequiredArgsConstructor НЕ нужен!
+    public FilmService(
+            @Qualifier("filmDbStorage") FilmStorage filmStorage,
+            @Qualifier("userDbStorage") UserStorage userStorage,
+            MpaStorage mpaStorage,
+            GenreStorage genreStorage
+    ) {
+        this.filmStorage = filmStorage;
+        this.userStorage = userStorage;
+        this.mpaStorage = mpaStorage;
+        this.genreStorage = genreStorage;
+    }
 
     public Film createFilm(Film film) {
         validate(film);

@@ -148,7 +148,6 @@ public class UserDbStorage implements UserStorage {
         getById(userId);
         getById(friendId);
 
-        // Удаляем обе записи: и от userId к friendId, и наоборот
         String deleteSql = "DELETE FROM friendships "
                 + "WHERE (user_id = ? AND friend_id = ?) "
                 + "OR (user_id = ? AND friend_id = ?)";

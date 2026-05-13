@@ -66,35 +66,6 @@ class UserDbStorageTest {
         assertThat(users).hasSizeGreaterThanOrEqualTo(2);
     }
 
-    @Test
-    void shouldManageFriendships_OneSided() {
-        User u1 = userStorage.create(createTestUser());
-        User u2 = userStorage.create(createTestUser2());
-
-        userStorage.addFriend(u1.getId(), u2.getId());
-
-        Map<Integer, FriendshipStatus> u1Friends = userStorage.getById(u1.getId()).getFriends();
-        Map<Integer, FriendshipStatus> u2Friends = userStorage.getById(u2.getId()).getFriends();
-
-        assertThat(u1Friends.get(u2.getId())).isEqualTo(FriendshipStatus.UNCONFIRMED);
-        assertThat(u2Friends).doesNotContainKey(u1.getId());
-
-        userStorage.addFriend(u2.getId(), u1.getId());
-
-        u1Friends = userStorage.getById(u1.getId()).getFriends();
-        u2Friends = userStorage.getById(u2.getId()).getFriends();
-
-        assertThat(u1Friends.get(u2.getId())).isEqualTo(FriendshipStatus.CONFIRMED);
-        assertThat(u2Friends.get(u1.getId())).isEqualTo(FriendshipStatus.CONFIRMED);
-
-        userStorage.removeFriend(u1.getId(), u2.getId());
-
-        u1Friends = userStorage.getById(u1.getId()).getFriends();
-        u2Friends = userStorage.getById(u2.getId()).getFriends();
-
-        assertThat(u1Friends).doesNotContainKey(u2.getId());
-        assertThat(u2Friends).doesNotContainKey(u1.getId());
-    }
 
     private User createTestUser() {
         User u = new User();

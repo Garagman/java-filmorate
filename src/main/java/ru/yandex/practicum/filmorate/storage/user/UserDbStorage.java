@@ -38,21 +38,6 @@ public class UserDbStorage implements UserStorage {
     private static final String SQL_FIND_ALL =
             "SELECT * FROM users";
 
-    private static final String SQL_FIND_FRIENDS =
-            "SELECT u.* FROM users u " +
-                    "JOIN friendships f ON u.id = f.friend_id " +
-                    "WHERE f.user_id = ?";
-
-    private static final String SQL_FIND_COMMON_FRIENDS =
-            "SELECT u.* FROM users u " +
-                    "WHERE u.id IN (" +
-                    "    SELECT friend_id FROM friendships WHERE user_id = ?" +
-                    ") " +
-                    "AND u.id IN (" +
-                    "    SELECT friend_id FROM friendships WHERE user_id = ?" +
-                    ") " +
-                    "AND u.id != ? AND u.id != ?";
-
     @Override
     public User create(User user) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -101,47 +86,39 @@ public class UserDbStorage implements UserStorage {
     @Override
     public void addFriend(Integer userId, Integer friendId) {
         if (userId.equals(friendId)) {
-            throw new ValidationException("Нельзя добавить самого себя");
+            throw new ValidationException("Нельзя добавить самого себя в друзья");
         }
 
         getById(userId);
         getById(friendId);
 
-        String sql = "SELECT status FROM friendships "
-                + "WHERE user_id = ? AND friend_id = ?";
+        String checkSql = "SELECT status FROM friendships WHERE user_id = ? AND friend_id = ?";
+
         String currentStatus = jdbcTemplate.query(
-                sql,
+                checkSql,
                 rs -> rs.next() ? rs.getString("status") : null,
                 userId, friendId);
 
-        String reverseSql = "SELECT status FROM friendships "
-                + "WHERE user_id = ? AND friend_id = ?";
         String reverseStatus = jdbcTemplate.query(
-                reverseSql,
+                checkSql,
                 rs -> rs.next() ? rs.getString("status") : null,
                 friendId, userId);
 
         if (currentStatus == null) {
             if ("UNCONFIRMED".equals(reverseStatus)) {
-                // Встречная заявка → подтверждаем взаимно
-                String updateSql = "UPDATE friendships SET status = 'CONFIRMED' "
-                        + "WHERE user_id = ? AND friend_id = ?";
-                jdbcTemplate.update(updateSql, friendId, userId);
-
-                String insertSql = "INSERT INTO friendships "
-                        + "(user_id, friend_id, status) "
-                        + "VALUES (?, ?, 'CONFIRMED')";
-                jdbcTemplate.update(insertSql, userId, friendId);
+                jdbcTemplate.update(
+                        "UPDATE friendships SET status = 'CONFIRMED' WHERE user_id = ? AND friend_id = ?",
+                        friendId, userId);
+                jdbcTemplate.update(
+                        "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'CONFIRMED')",
+                        userId, friendId);
             } else {
-                // Новая заявка → ставим UNCONFIRMED
-                String insertSql = "INSERT INTO friendships "
-                        + "(user_id, friend_id, status) "
-                        + "VALUES (?, ?, 'UNCONFIRMED')";
-                jdbcTemplate.update(insertSql, userId, friendId);
+                jdbcTemplate.update(
+                        "INSERT INTO friendships (user_id, friend_id, status) VALUES (?, ?, 'UNCONFIRMED')",
+                        userId, friendId);
             }
         }
     }
-
 
     @Override
     public void removeFriend(Integer userId, Integer friendId) {
@@ -149,35 +126,44 @@ public class UserDbStorage implements UserStorage {
         getById(friendId);
 
         String deleteSql = "DELETE FROM friendships "
-                + "WHERE (user_id = ? AND friend_id = ?) "
-                + "OR (user_id = ? AND friend_id = ?)";
-        jdbcTemplate.update(deleteSql, userId, friendId, friendId, userId);
+                + "WHERE user_id = ? AND friend_id = ?";
+        jdbcTemplate.update(deleteSql, userId, friendId);
     }
 
     @Override
     public List<User> getFriends(Integer userId) {
         getById(userId);
-        return jdbcTemplate.query(
-                "SELECT u.* FROM users u JOIN friendships f ON u.id = f.friend_id WHERE f.user_id = ?",
-                userMapper, userId);
+        String sql = "SELECT u.* FROM users u "
+                + "JOIN friendships f ON u.id = f.friend_id "
+                + "WHERE f.user_id = ?";
+        return jdbcTemplate.query(sql, userMapper, userId);
     }
 
     @Override
     public List<User> getCommonFriends(Integer userId, Integer otherId) {
         getById(userId);
         getById(otherId);
-        return jdbcTemplate.query(SQL_FIND_COMMON_FRIENDS, userMapper, userId, otherId, userId, otherId);
+        String sql = "SELECT u.* FROM users u "
+                + "WHERE u.id IN ("
+                + "    SELECT friend_id FROM friendships WHERE user_id = ?"
+                + ") "
+                + "AND u.id IN ("
+                + "    SELECT friend_id FROM friendships WHERE user_id = ?"
+                + ") "
+                + "AND u.id != ? AND u.id != ?";
+        return jdbcTemplate.query(sql, userMapper,
+                userId, otherId, userId, otherId);
     }
 
     private Map<Integer, FriendshipStatus> loadFriendships(Integer userId) {
         String sql = "SELECT friend_id, status FROM friendships WHERE user_id = ?";
         List<Map<String, Object>> rows = jdbcTemplate.queryForList(sql, userId);
+
         Map<Integer, FriendshipStatus> friends = new HashMap<>();
         for (Map<String, Object> row : rows) {
-            friends.put(
-                    (Integer) row.get("friend_id"),
-                    FriendshipStatus.valueOf((String) row.get("status"))
-            );
+            Integer fid = (Integer) row.get("friend_id");
+            FriendshipStatus status = FriendshipStatus.valueOf((String) row.get("status"));
+            friends.put(fid, status);
         }
         return friends;
     }

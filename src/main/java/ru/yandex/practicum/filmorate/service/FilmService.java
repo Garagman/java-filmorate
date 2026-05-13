@@ -80,13 +80,13 @@ public class FilmService {
             film.setMpaId(film.getMpa().getId());
         }
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            Set<Integer> ids = new HashSet<>();
-            for (Genre g : film.getGenres()) {
-                if (g.getId() != null) {
-                    ids.add(g.getId());
+            Set<Integer> genreIds = new HashSet<>();
+            for (Genre genre : film.getGenres()) {
+                if (genre.getId() != null) {
+                    genreIds.add(genre.getId());
                 }
             }
-            film.setGenreIds(ids);
+            film.setGenreIds(genreIds);
         }
     }
 

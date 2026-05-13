@@ -98,7 +98,7 @@ public class FilmDbStorage implements FilmStorage {
                 film.getDuration(), film.getMpaId(), film.getId());
 
         if (rows == 0) {
-            throw new NotFoundException("Фильм с id=" + film.getId() + " не найден");
+            throw new NotFoundException(String.format("Фильм с id=%d не найден", film.getId()));
         }
 
         jdbcTemplate.update(SQL_DELETE_FILM_GENRES, film.getId());
@@ -115,7 +115,7 @@ public class FilmDbStorage implements FilmStorage {
     public Film getById(Integer id) {
         List<Film> films = jdbcTemplate.query(SQL_FIND_BY_ID, filmMapper, id);
         if (films.isEmpty()) {
-            throw new NotFoundException("Фильм с id=" + id + " не найден");
+            throw new NotFoundException(String.format("Фильм с id=%d не найден", id));
         }
         return enrichFilm(films.get(0));
     }

@@ -2,20 +2,13 @@ package ru.yandex.practicum.filmorate.model;
 
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.experimental.FieldDefaults;
-
-import java.time.LocalDate;
-import java.util.HashMap;
-import java.util.Map;
 
 @Data
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class User {
+@EqualsAndHashCode(of = "id")
+public class Genre {
     Integer id;
-    String email;
-    String login;
     String name;
-    LocalDate birthday;
-
-    Map<Integer, FriendshipStatus> friends = new HashMap<>();
 }

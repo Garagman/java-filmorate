@@ -1,12 +1,13 @@
 package ru.yandex.practicum.filmorate.storage.film;
 
-import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
-@Component
 public class InMemoryFilmStorage implements FilmStorage {
 
     private final Map<Integer, Film> films = new HashMap<>();
@@ -42,5 +43,20 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public List<Film> getAll() {
         return new ArrayList<>(films.values());
+    }
+
+    @Override
+    public List<Film> getPopular(int count) {
+        throw new UnsupportedOperationException("getPopular не поддерживается в InMemory-режиме");
+    }
+
+    @Override
+    public void addLike(Integer filmId, Integer userId) {
+        throw new UnsupportedOperationException("addLike не поддерживается в InMemory-режиме");
+    }
+
+    @Override
+    public void removeLike(Integer filmId, Integer userId) {
+        throw new UnsupportedOperationException("removeLike не поддерживается в InMemory-режиме");
     }
 }
